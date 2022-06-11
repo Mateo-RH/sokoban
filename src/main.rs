@@ -8,35 +8,24 @@ mod entities;
 mod map;
 mod systems;
 
-use crate::components::register_components;
+use crate::components::*;
 use crate::map::initialize_level;
-use systems::{register_resources, InputQueue, InputSystem, RenderingSystem};
+use systems::{InputQueue, InputSystem, RenderingSystem};
 
-// This struct will hold all our game state
 struct Game {
     world: World,
 }
 
-// This is the main event loop. ggez tells us to implement two things:
-// - updating
-// - rendering
 impl event::EventHandler<ggez::GameError> for Game {
     fn update(&mut self, _context: &mut Context) -> GameResult {
-        // Run input system
-        {
-            let mut is = InputSystem {};
-            is.run_now(&self.world);
-        }
+        let mut is = InputSystem {};
+        is.run_now(&self.world);
         Ok(())
     }
 
     fn draw(&mut self, context: &mut Context) -> GameResult {
-        // Render game entities
-        {
-            let mut rs = RenderingSystem { context };
-            rs.run_now(&self.world);
-        }
-
+        let mut rs = RenderingSystem { context };
+        rs.run_now(&self.world);
         Ok(())
     }
 
@@ -54,11 +43,20 @@ impl event::EventHandler<ggez::GameError> for Game {
 
 pub fn main() -> GameResult {
     let mut world = World::new();
-    register_components(&mut world);
-    register_resources(&mut world);
+
+    //Components
+    world.register::<Position>();
+    world.register::<Renderable>();
+    world.register::<Player>();
+    world.register::<Wall>();
+    world.register::<Box>();
+    world.register::<BoxSpot>();
+    world.register::<Movable>();
+    world.register::<Immovable>();
+    world.insert(InputQueue::default());
+
     initialize_level(&mut world);
 
-    // Create a game context and event loop
     let context_builder = ggez::ContextBuilder::new("rust_sokoban", "sokoban")
         .window_setup(conf::WindowSetup::default().title("Rust Sokoban!"))
         .window_mode(conf::WindowMode::default().dimensions(1200.0, 1000.0))
@@ -66,8 +64,5 @@ pub fn main() -> GameResult {
 
     let (context, event_loop) = context_builder.build()?;
 
-    // Create the game state
-    let game = Game { world };
-    // Run the main event loop
-    event::run(context, event_loop, game)
+    event::run(context, event_loop, Game { world })
 }

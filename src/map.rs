@@ -2,9 +2,7 @@ use crate::components::Position;
 use crate::entities::*;
 use specs::World;
 
-// Initialize the level
-pub fn initialize_level(world: &mut World) {
-    const MAP: &str = "
+const LEVEL_1: &str = "
     N N W W W W W W
     W W W . . . . W
     W . . . B . . W
@@ -16,11 +14,10 @@ pub fn initialize_level(world: &mut World) {
     W W W W W W W W
     ";
 
-    load_map(world, MAP.to_string());
-}
-
-pub fn load_map(world: &mut World, map: String) {
-    map.trim()
+pub fn initialize_level(world: &mut World) {
+    LEVEL_1
+        .to_string()
+        .trim()
         .split('\n')
         .map(|x| x.replace(" ", ""))
         .enumerate()
