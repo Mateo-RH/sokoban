@@ -10,7 +10,7 @@ mod systems;
 
 use crate::components::*;
 use crate::map::initialize_level;
-use systems::{InputQueue, InputSystem, RenderingSystem};
+use systems::*;
 
 struct Game {
     world: World,
@@ -20,6 +20,11 @@ impl event::EventHandler<ggez::GameError> for Game {
     fn update(&mut self, _context: &mut Context) -> GameResult {
         let mut is = InputSystem {};
         is.run_now(&self.world);
+
+        //TODO: test dispatcher?
+        let mut gs = GameplaySystem {};
+        gs.run_now(&self.world);
+
         Ok(())
     }
 
@@ -53,7 +58,10 @@ pub fn main() -> GameResult {
     world.register::<BoxSpot>();
     world.register::<Movable>();
     world.register::<Immovable>();
+    //Resources
     world.insert(InputQueue::default());
+    world.insert(Gameplay::default());
+    world.insert(GameplayState::default());
 
     initialize_level(&mut world);
 

@@ -1,12 +1,13 @@
 use std::collections::HashMap;
+use std::fmt::{self, Display};
 
-use ggez::graphics::{self, DrawParam, Image};
+use ggez::graphics::{self, Color, DrawParam, Image};
 use ggez::{event::KeyCode, Context};
 use glam::Vec2;
-use specs::Entities;
 use specs::{join::Join, ReadStorage, System, Write, WriteStorage};
+use specs::{Entities, Read};
 
-use crate::components::{Immovable, Movable, Player, Position, Renderable};
+use crate::components::*;
 
 const TILE_WIDTH: f32 = 32.0;
 const MAP_WIDTH: u8 = 8;
@@ -18,13 +19,38 @@ pub struct InputQueue {
     pub keys_pressed: Vec<KeyCode>,
 }
 
+#[derive(Default)]
+pub struct Gameplay {
+    pub state: GameplayState,
+    pub move_count: u32,
+}
+
+pub enum GameplayState {
+    Playing,
+    Won,
+}
+impl Default for GameplayState {
+    fn default() -> Self {
+        Self::Playing
+    }
+}
+impl Display for GameplayState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            GameplayState::Playing => "Playing",
+            GameplayState::Won => "Won",
+        })?;
+        Ok(())
+    }
+}
+
 // Systems
 pub struct InputSystem {}
-
 impl<'a> System<'a> for InputSystem {
     // Data
     type SystemData = (
         Write<'a, InputQueue>,
+        Write<'a, Gameplay>,
         Entities<'a>,
         WriteStorage<'a, Position>,
         ReadStorage<'a, Player>,
@@ -33,7 +59,8 @@ impl<'a> System<'a> for InputSystem {
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (mut input_queue, entities, mut positions, players, movables, immovables) = data;
+        let (mut input_queue, mut gameplay, entities, mut positions, players, movables, immovables) =
+            data;
 
         let mut to_move = Vec::new();
 
@@ -79,6 +106,10 @@ impl<'a> System<'a> for InputSystem {
             }
         }
 
+        if to_move.len() > 0 {
+            gameplay.move_count += 1;
+        }
+
         // Now actually move what needs to be moved
         for (key, id) in to_move {
             let position = positions.get_mut(entities.entity(id));
@@ -95,17 +126,45 @@ impl<'a> System<'a> for InputSystem {
     }
 }
 
+pub struct GameplaySystem {}
+impl<'a> System<'a> for GameplaySystem {
+    type SystemData = (
+        Write<'a, Gameplay>,
+        ReadStorage<'a, Box>,
+        ReadStorage<'a, BoxSpot>,
+        ReadStorage<'a, Position>,
+    );
+
+    fn run(&mut self, data: Self::SystemData) {
+        let (mut gameplay, boxes, spots, positions) = data;
+
+        let boxes_positions = (&boxes, &positions)
+            .join()
+            .map(|(_, p)| (p.x, p.y))
+            .collect::<Vec<_>>();
+
+        for (_, spot) in (&spots, &positions).join() {
+            if boxes_positions.contains(&(spot.x, spot.y)) {
+                gameplay.state = GameplayState::Won;
+            }
+        }
+    }
+}
+
 pub struct RenderingSystem<'a> {
     pub context: &'a mut Context,
 }
 impl<'a> System<'a> for RenderingSystem<'a> {
-    type SystemData = (ReadStorage<'a, Position>, ReadStorage<'a, Renderable>);
+    type SystemData = (
+        Read<'a, Gameplay>,
+        ReadStorage<'a, Position>,
+        ReadStorage<'a, Renderable>,
+    );
 
-    fn run(&mut self, (positions, renderables): Self::SystemData) {
+    fn run(&mut self, data: Self::SystemData) {
+        let (gampelay, positions, renderables) = data;
         graphics::clear(self.context, graphics::Color::new(0.95, 0.95, 0.95, 1.0));
 
-        // Get all the renderables with their positions and sort by the position z
-        // This will allow us to have entities layered visually.
         let mut rendering_data = (&positions, &renderables).join().collect::<Vec<_>>();
         rendering_data.sort_by_key(|&k| k.0.z);
 
@@ -118,6 +177,27 @@ impl<'a> System<'a> for RenderingSystem<'a> {
             graphics::draw(self.context, &image, draw_params).expect("expected render");
         }
 
+        self.draw_text(&gampelay.state.to_string(), 525.0, 80.0);
+        self.draw_text(&gampelay.move_count.to_string(), 525.0, 100.0);
+
         graphics::present(self.context).expect("expected to present");
+    }
+}
+
+impl RenderingSystem<'_> {
+    pub fn draw_text(&mut self, text_string: &str, x: f32, y: f32) {
+        let text = graphics::Text::new(text_string);
+        let destination = Vec2::new(x, y);
+        let color = Some(Color::new(0.0, 0.0, 0.0, 1.0));
+        let dimensions = Vec2::new(0.0, 20.0);
+
+        graphics::queue_text(self.context, &text, dimensions, color);
+        graphics::draw_queued_text(
+            self.context,
+            graphics::DrawParam::new().dest(destination),
+            None,
+            graphics::FilterMode::Linear,
+        )
+        .expect("expected drawing queued text");
     }
 }
