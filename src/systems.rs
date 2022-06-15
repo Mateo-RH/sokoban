@@ -138,15 +138,41 @@ impl<'a> System<'a> for GameplaySystem {
     fn run(&mut self, data: Self::SystemData) {
         let (mut gameplay, boxes, spots, positions) = data;
 
-        let boxes_positions = (&boxes, &positions)
+        let mut blue_in_spot = false;
+        let mut red_in_spot = false;
+
+        let blue_boxes = (&boxes, &positions)
             .join()
+            .filter(|(b, ..)| match b.colour {
+                BoxColour::Blue => true,
+                _ => false,
+            })
             .map(|(_, p)| (p.x, p.y))
             .collect::<Vec<_>>();
 
-        for (_, spot) in (&spots, &positions).join() {
-            if boxes_positions.contains(&(spot.x, spot.y)) {
-                gameplay.state = GameplayState::Won;
+        let red_boxes = (&boxes, &positions)
+            .join()
+            .filter(|(b, ..)| match b.colour {
+                BoxColour::Red => true,
+                _ => false,
+            })
+            .map(|(_, p)| (p.x, p.y))
+            .collect::<Vec<_>>();
+
+        for (BoxSpot { colour }, spot) in (&spots, &positions).join() {
+            match colour {
+                BoxColour::Blue if blue_boxes.contains(&(spot.x, spot.y)) => {
+                    blue_in_spot = true;
+                }
+                BoxColour::Red if red_boxes.contains(&(spot.x, spot.y)) => {
+                    red_in_spot = true;
+                }
+                _ => (),
             }
+        }
+
+        if blue_in_spot && red_in_spot {
+            gameplay.state = GameplayState::Won;
         }
     }
 }

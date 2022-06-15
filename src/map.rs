@@ -1,4 +1,4 @@
-use crate::components::Position;
+use crate::components::{BoxColour, Position};
 use crate::entities::*;
 use specs::World;
 
@@ -6,13 +6,20 @@ const LEVEL_1: &str = "
     N N W W W W W W
     W W W . . . . W
     W . . . B . . W
-    W . . . . . . W 
+    W . . R . . . W 
     W . P . . . . W
-    W . . . . . . W
-    W . . S . . . W
+    W . . . . S . W
+    W . . Z . . . W
     W . . . . . . W
     W W W W W W W W
     ";
+// N: Nothing
+// W: Wall
+// P: Player
+// B: Blue box
+// R: Red box
+// S: Red spot
+// Z: Blue spot
 
 pub fn initialize_level(world: &mut World) {
     LEVEL_1
@@ -38,13 +45,21 @@ pub fn initialize_level(world: &mut World) {
                         create_floor(world, position);
                         create_player(world, position);
                     }
+                    b'R' => {
+                        create_floor(world, position);
+                        create_box(world, position, BoxColour::Red);
+                    }
                     b'B' => {
                         create_floor(world, position);
-                        create_box(world, position);
+                        create_box(world, position, BoxColour::Blue);
                     }
                     b'S' => {
                         create_floor(world, position);
-                        create_box_spot(world, position);
+                        create_box_spot(world, position, BoxColour::Red);
+                    }
+                    b'Z' => {
+                        create_floor(world, position);
+                        create_box_spot(world, position, BoxColour::Blue);
                     }
                     b'N' => (),
                     b => panic!("unrecognized map item {}", b),

@@ -4,7 +4,8 @@ Rust implementation of sokoban game.
 
 ## Game Engine
 
-[ggez](https://ggez.rs/) 2D game engine which I don't know what does that mean.
+Game engine is it's a framework specific for game development. It provides tools for rendering, design, Ecs, game loop, etc...
+[ggez](https://ggez.rs/).
 
 ## ECS
 
