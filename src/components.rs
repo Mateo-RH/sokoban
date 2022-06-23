@@ -32,10 +32,33 @@ pub struct Immovable;
 #[storage(NullStorage)]
 pub struct Movable;
 
-#[derive(Component, Debug)]
+pub enum RenderableKind {
+    Static,
+    Animated,
+}
+
+#[derive(Component)]
 #[storage(VecStorage)]
 pub struct Renderable {
-    pub path: String,
+    pub paths: Vec<String>,
+}
+
+impl Renderable {
+    pub fn new(paths: Vec<String>) -> Self {
+        Self { paths }
+    }
+
+    pub fn kind(&self) -> RenderableKind {
+        match self.paths.len() {
+            0 => panic!("Invalid renderable"),
+            1 => RenderableKind::Static,
+            _ => RenderableKind::Animated,
+        }
+    }
+
+    pub fn path(&self, path_index: usize) -> String {
+        self.paths[path_index % self.paths.len()].clone()
+    }
 }
 
 #[derive(Component)]

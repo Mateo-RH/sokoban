@@ -1,5 +1,5 @@
 use ggez::event::{self, KeyCode, KeyMods};
-use ggez::{conf, Context, GameResult};
+use ggez::{conf, timer, Context, GameResult};
 use specs::{RunNow, World, WorldExt};
 use std::path;
 
@@ -17,13 +17,21 @@ struct Game {
 }
 
 impl event::EventHandler<ggez::GameError> for Game {
-    fn update(&mut self, _context: &mut Context) -> GameResult {
-        let mut is = InputSystem {};
-        is.run_now(&self.world);
+    fn update(&mut self, context: &mut Context) -> GameResult {
+        {
+            let mut is = InputSystem {};
+            is.run_now(&self.world);
+        }
 
-        //TODO: test dispatcher?
-        let mut gs = GameplaySystem {};
-        gs.run_now(&self.world);
+        {
+            let mut gs = GameplaySystem {};
+            gs.run_now(&self.world);
+        }
+
+        {
+            let mut time = self.world.write_resource::<Time>();
+            time.delta += timer::delta(context)
+        }
 
         Ok(())
     }
@@ -62,6 +70,7 @@ pub fn main() -> GameResult {
     world.insert(InputQueue::default());
     world.insert(Gameplay::default());
     world.insert(GameplayState::default());
+    world.insert(Time::default());
 
     initialize_level(&mut world);
 

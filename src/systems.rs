@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::{self, Display};
+use std::time::Duration;
 
 use ggez::graphics::{self, Color, DrawParam, Image};
 use ggez::{event::KeyCode, Context};
@@ -24,6 +25,13 @@ pub struct Gameplay {
     pub state: GameplayState,
     pub move_count: u32,
 }
+
+#[derive(Default)]
+pub struct Time {
+    pub delta: Duration,
+}
+
+// Systems
 
 pub enum GameplayState {
     Playing,
@@ -183,19 +191,20 @@ pub struct RenderingSystem<'a> {
 impl<'a> System<'a> for RenderingSystem<'a> {
     type SystemData = (
         Read<'a, Gameplay>,
+        Read<'a, Time>,
         ReadStorage<'a, Position>,
         ReadStorage<'a, Renderable>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (gampelay, positions, renderables) = data;
+        let (gampelay, time, positions, renderables) = data;
         graphics::clear(self.context, graphics::Color::new(0.95, 0.95, 0.95, 1.0));
 
         let mut rendering_data = (&positions, &renderables).join().collect::<Vec<_>>();
         rendering_data.sort_by_key(|&k| k.0.z);
 
         for (position, renderable) in rendering_data.iter() {
-            let image = Image::new(self.context, &renderable.path).expect("expected image");
+            let image = self.get_image(renderable, time.delta);
             let x = position.x as f32 * TILE_WIDTH;
             let y = position.y as f32 * TILE_WIDTH;
 
@@ -225,5 +234,23 @@ impl RenderingSystem<'_> {
             graphics::FilterMode::Linear,
         )
         .expect("expected drawing queued text");
+    }
+
+    pub fn get_image(&mut self, renderable: &Renderable, delta: Duration) -> Image {
+        let path_index = match renderable.kind() {
+            RenderableKind::Static => 0,
+            RenderableKind::Animated => {
+                // If we have multiple, we want to select the right one based on the delta time.
+                // First we get the delta in milliseconds, we % by 1000 to get the milliseconds
+                // only and finally we divide by 250 to get a number between 0 and 4. If it's 4
+                // we technically are on the next iteration of the loop (or on 0), but we will let
+                // the renderable handle this logic of wrapping frames.
+                ((delta.as_millis() % 1000) / 250) as usize
+            }
+        };
+
+        let image_path = renderable.path(path_index);
+
+        Image::new(self.context, image_path).expect("expected image")
     }
 }
