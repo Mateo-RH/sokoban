@@ -2,9 +2,12 @@ use std::collections::HashMap;
 use std::fmt::{self, Display};
 use std::time::Duration;
 
+use ggez::graphics::spritebatch::SpriteBatch;
 use ggez::graphics::{self, Color, DrawParam, Image};
+use ggez::timer;
 use ggez::{event::KeyCode, Context};
 use glam::Vec2;
+use itertools::Itertools;
 use specs::{join::Join, ReadStorage, System, Write, WriteStorage};
 use specs::{Entities, Read};
 
@@ -183,19 +186,46 @@ impl<'a> System<'a> for RenderingSystem<'a> {
         graphics::clear(self.context, graphics::Color::new(0.95, 0.95, 0.95, 1.0));
 
         let mut rendering_data = (&positions, &renderables).join().collect::<Vec<_>>();
+        let mut rendering_batches: HashMap<u8, HashMap<String, Vec<DrawParam>>> = HashMap::new();
+
         rendering_data.sort_by_key(|&k| k.0.z);
 
         for (position, renderable) in rendering_data.iter() {
-            let image = self.get_image(renderable, time.delta);
+            let image_path = self.get_image(renderable, time.delta);
             let x = position.x as f32 * TILE_WIDTH;
             let y = position.y as f32 * TILE_WIDTH;
 
             let draw_params = DrawParam::new().dest(Vec2::new(x, y));
-            graphics::draw(self.context, &image, draw_params).expect("expected render");
+            rendering_batches
+                .entry(position.z)
+                .or_default()
+                .entry(image_path)
+                .or_default()
+                .push(draw_params);
         }
+
+        for (_, group) in rendering_batches
+            .iter()
+            .sorted_by(|a, b| Ord::cmp(&a.0, &b.0))
+        {
+            for (image_path, draw_params) in group {
+                let image = Image::new(self.context, image_path).expect("expected image");
+                let mut sprite_batch = SpriteBatch::new(image);
+
+                for draw_param in draw_params.iter() {
+                    sprite_batch.add(*draw_param);
+                }
+
+                graphics::draw(self.context, &sprite_batch, graphics::DrawParam::new())
+                    .expect("expected render");
+            }
+        }
+
+        let fps = format!("FPS: {:.0}", timer::fps(self.context));
 
         self.draw_text(&gampelay.state.to_string(), 525.0, 80.0);
         self.draw_text(&gampelay.move_count.to_string(), 525.0, 100.0);
+        self.draw_text(&fps, 525.0, 120.0);
 
         graphics::present(self.context).expect("expected to present");
     }
@@ -218,7 +248,7 @@ impl RenderingSystem<'_> {
         .expect("expected drawing queued text");
     }
 
-    pub fn get_image(&mut self, renderable: &Renderable, delta: Duration) -> Image {
+    pub fn get_image(&mut self, renderable: &Renderable, delta: Duration) -> String {
         let path_index = match renderable.kind() {
             RenderableKind::Static => 0,
             RenderableKind::Animated => {
@@ -231,8 +261,6 @@ impl RenderingSystem<'_> {
             }
         };
 
-        let image_path = renderable.path(path_index);
-
-        Image::new(self.context, image_path).expect("expected image")
+        renderable.path(path_index)
     }
 }
