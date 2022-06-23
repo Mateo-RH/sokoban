@@ -9,29 +9,11 @@ use specs::{join::Join, ReadStorage, System, Write, WriteStorage};
 use specs::{Entities, Read};
 
 use crate::components::*;
+use crate::resources::*;
 
 const TILE_WIDTH: f32 = 32.0;
 const MAP_WIDTH: u8 = 8;
 const MAP_HEIGHT: u8 = 9;
-
-// Resources
-#[derive(Default)]
-pub struct InputQueue {
-    pub keys_pressed: Vec<KeyCode>,
-}
-
-#[derive(Default)]
-pub struct Gameplay {
-    pub state: GameplayState,
-    pub move_count: u32,
-}
-
-#[derive(Default)]
-pub struct Time {
-    pub delta: Duration,
-}
-
-// Systems
 
 pub enum GameplayState {
     Playing,

@@ -6,10 +6,12 @@ use std::path;
 mod components;
 mod entities;
 mod map;
+mod resources;
 mod systems;
 
 use crate::components::*;
 use crate::map::initialize_level;
+use resources::*;
 use systems::*;
 
 struct Game {
